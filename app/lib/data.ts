@@ -7,6 +7,7 @@ import {
   LatestInvoiceRaw,
   User,
   Revenue,
+  FormattedCustomersTable,
 } from './definitions';
 import { formatCurrency } from './utils';
 
@@ -185,6 +186,31 @@ export async function fetchCustomers() {
       ORDER BY name ASC
     `;
 
+    const customers = data.rows;
+    return customers;
+  } catch (err) {
+    console.error('Database Error:', err);
+    throw new Error('Failed to fetch all customers.');
+  }
+}
+
+export async function fetchCustomerData() {
+  try {
+    const data = await sql<FormattedCustomersTable>`
+      SELECT c.id, c.name name, c.email email, c.image_url image_url, 
+              tot.total total_invoices, pend.pendingCount total_pending, paid.paidCount total_paid
+      FROM customers c
+      FULL OUTER JOIN
+        (SELECT customer_id cid, count(1) as total FROM invoices GROUP BY customer_id ) tot
+      ON c.id = tot.cid
+      FULL OUTER JOIN
+        (SELECT customer_id cid, count(1) as paidCount FROM invoices  WHERE status = 'paid' GROUP BY customer_id ) paid 
+      ON c.id = paid.cid
+      FULL OUTER JOIN
+        (SELECT customer_id cid, count(1) as pendingCount FROM invoices  WHERE status = 'pending' GROUP BY customer_id ) pend 
+      ON c.id = pend.cid
+      ORDER BY c.name ASC
+    `;
     const customers = data.rows;
     return customers;
   } catch (err) {
